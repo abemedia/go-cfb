@@ -3,6 +3,7 @@ version: '2'
 linters:
   default: all
   disable:
+    - cyclop
     - depguard
     - err113
     - errorlint
@@ -15,6 +16,7 @@ linters:
     - gocyclo
     - gosec
     - godox
+    - ireturn
     - mnd
     - nlreturn
     - noinlineerr
@@ -25,10 +27,8 @@ linters:
     - wsl
     - wsl_v5
   settings:
-    cyclop:
-      max-complexity: 20
     funlen:
-      # Complexity is already covered by cyclop and gocognit.
+      # Complexity is already covered by gocognit.
       statements: -1
     govet:
       enable-all: true
@@ -37,8 +37,6 @@ linters:
       require-specific: true
   exclusions:
     presets:
-      - common-false-positives
-      - legacy
       - std-error-handling
     rules:
       - linters:
@@ -49,6 +47,8 @@ linters:
         path: (.+)_test.go
       - linters: [govet]
         text: 'shadow: declaration of "err" shadows declaration'
+      - linters: [goconst]
+        source: 'fs\.PathError'
     paths:
       - testdata
 
@@ -67,4 +67,4 @@ formatters:
       extra-rules: true
     golines:
       max-len: 120
-      tab-len: 2
+      tab-len: 1

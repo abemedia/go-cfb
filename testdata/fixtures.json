@@ -1,0 +1,202 @@
+[
+  {
+    "name": "example.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "README.md", "type": "stream", "content": "This is an example CFB file." }
+      ]
+    }
+  },
+  {
+    "name": "v3_streams.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "tiny", "type": "stream", "size": 17 },
+        { "name": "exact-mini", "type": "stream", "size": 64 },
+        { "name": "two-mini", "type": "stream", "size": 128 },
+        { "name": "just-below-cutoff", "type": "stream", "size": 4095 },
+        { "name": "at-cutoff", "type": "stream", "size": 4096 },
+        { "name": "just-above-cutoff", "type": "stream", "size": 4097 },
+        { "name": "multi-sector", "type": "stream", "size": 50000 },
+        { "name": "big", "type": "stream", "size": 1048576 }
+      ]
+    }
+  },
+  {
+    "name": "v3_nested.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "TopStream", "type": "stream", "size": 200 },
+        {
+          "name": "Sub",
+          "type": "storage",
+          "children": [
+            { "name": "Inner", "type": "stream", "size": 17 },
+            {
+              "name": "DeepSub",
+              "type": "storage",
+              "children": [{ "name": "Leaf", "type": "stream", "size": 5000 }]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "v3_metadata.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "clsid": "aabbccddeeff00112233445566778899",
+      "stateBits": 99,
+      "children": [
+        { "name": "PlainStream", "type": "stream", "size": 200 },
+        {
+          "name": "ClassedStorage",
+          "type": "storage",
+          "clsid": "0102030405060708090a0b0c0d0e0f10",
+          "stateBits": 12345,
+          "modified": "2012-12-25T00:00:00Z",
+          "created": "2010-01-01T00:00:00Z",
+          "children": [{ "name": "Child", "type": "stream", "size": 50 }]
+        }
+      ]
+    }
+  },
+  {
+    "name": "v3_empty.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "EmptyStream", "type": "stream", "size": 0 },
+        { "name": "EmptyStorage", "type": "storage" },
+        { "name": "Sibling", "type": "stream", "size": 50 }
+      ]
+    }
+  },
+  {
+    "name": "v3_casefold.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "Σtart", "type": "stream", "size": 32 },
+        { "name": "ςfinal", "type": "stream", "size": 32 },
+        { "name": "Ωend", "type": "stream", "size": 32 },
+        { "name": "αcurve", "type": "stream", "size": 32 },
+        { "name": "ßeta", "type": "stream", "size": 32 },
+        { "name": "Ⱥdmin", "type": "stream", "size": 32 },
+        { "name": "Ⱦest", "type": "stream", "size": 32 },
+        { "name": "Æneid", "type": "stream", "size": 32 },
+        { "name": "Іcon", "type": "stream", "size": 32 },
+        { "name": "Ÿankee", "type": "stream", "size": 32 },
+        { "name": "fluss", "type": "stream", "size": 32 },
+        { "name": "📊sales", "type": "stream", "size": 32 }
+      ]
+    }
+  },
+  {
+    "name": "v3_difat.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [{ "name": "huge", "type": "stream", "size": 8388608 }]
+    }
+  },
+  {
+    "name": "v3_bst.cfb",
+    "generator": "istorage",
+    "version": "v3",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "a", "type": "stream", "size": 32 },
+        { "name": "bb", "type": "stream", "size": 40 },
+        { "name": "ccc", "type": "stream", "size": 48 },
+        { "name": "dddd", "type": "stream", "size": 56 },
+        { "name": "eeeee", "type": "stream", "size": 64 },
+        { "name": "ffffff", "type": "stream", "size": 72 },
+        { "name": "ggggggg", "type": "stream", "size": 80 },
+        { "name": "hhhhhhhh", "type": "stream", "size": 88 },
+        { "name": "iiiiiiiii", "type": "stream", "size": 96 },
+        { "name": "jjjjjjjjjj", "type": "stream", "size": 100 },
+        { "name": "alpha", "type": "stream", "size": 32 },
+        { "name": "beta", "type": "stream", "size": 32 },
+        { "name": "gamma", "type": "stream", "size": 32 },
+        { "name": "delta", "type": "stream", "size": 32 },
+        { "name": "epsilon", "type": "stream", "size": 32 },
+        { "name": "zeta", "type": "stream", "size": 32 },
+        { "name": "eta", "type": "stream", "size": 32 },
+        { "name": "theta", "type": "stream", "size": 32 },
+        { "name": "iota", "type": "stream", "size": 32 },
+        { "name": "kappa", "type": "stream", "size": 32 },
+        { "name": "lambda", "type": "stream", "size": 32 },
+        { "name": "mu", "type": "stream", "size": 32 },
+        { "name": "nu", "type": "stream", "size": 32 },
+        { "name": "xi", "type": "stream", "size": 32 },
+        { "name": "omicron", "type": "stream", "size": 32 }
+      ]
+    }
+  },
+  {
+    "name": "v4_streams.cfb",
+    "generator": "istorage",
+    "version": "v4",
+    "tree": {
+      "type": "storage",
+      "children": [
+        { "name": "tiny", "type": "stream", "size": 17 },
+        { "name": "exact-mini", "type": "stream", "size": 64 },
+        { "name": "just-below-cutoff", "type": "stream", "size": 4095 },
+        { "name": "at-cutoff", "type": "stream", "size": 4096 },
+        { "name": "just-above-cutoff", "type": "stream", "size": 4097 },
+        { "name": "multi-sector", "type": "stream", "size": 50000 },
+        { "name": "big", "type": "stream", "size": 1048576 }
+      ]
+    }
+  },
+  {
+    "name": "v4_complex.cfb",
+    "generator": "istorage",
+    "version": "v4",
+    "tree": {
+      "type": "storage",
+      "clsid": "11223344556677889900aabbccddeeff",
+      "stateBits": 7,
+      "children": [
+        { "name": "TopStream", "type": "stream", "size": 200 },
+        { "name": "résumé", "type": "stream", "size": 100 },
+        {
+          "name": "Sub",
+          "type": "storage",
+          "clsid": "0011223344556677889900aabbccddee",
+          "stateBits": 42,
+          "modified": "2020-06-15T12:30:00Z",
+          "created": "2018-03-01T00:00:00Z",
+          "children": [
+            { "name": "Inner", "type": "stream", "size": 17 },
+            {
+              "name": "DeepSub",
+              "type": "storage",
+              "children": [{ "name": "Leaf", "type": "stream", "size": 8000 }]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
