@@ -132,9 +132,8 @@ func (s *Storage) OpenStorage(name string) (*Storage, error) {
 }
 
 func findEntry[T Entry](s *Storage, name string) (T, bool) {
-	target := utf16.Encode([]rune(name))
 	for _, e := range s.Entries {
-		if v, ok := e.(T); ok && compareNames(target, utf16.Encode([]rune(v.entryName()))) == 0 {
+		if v, ok := e.(T); ok && compareNamesStr(name, e.entryName()) == 0 {
 			return v, true
 		}
 	}
