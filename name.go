@@ -39,6 +39,21 @@ func compareNames(a, b []uint16) int {
 	return 0
 }
 
+// compareNamesStr orders two string names like [compareNames].
+func compareNamesStr(a, b string) int {
+	var ab, bb [nameMaxUnits]uint16
+	return compareNames(appendName(ab[:0], a), appendName(bb[:0], b))
+}
+
+// appendName appends UTF-16 code units of the string s to dst and returns the
+// extended buffer.
+func appendName(dst []uint16, s string) []uint16 {
+	for _, r := range s {
+		dst = utf16.AppendRune(dst, r)
+	}
+	return dst
+}
+
 // caseRange maps a [Lo, Hi] code-unit range to uppercase by adding Delta.
 // When Delta is [upperLower], the range uses an alternating-pair pattern instead.
 type caseRange struct {
