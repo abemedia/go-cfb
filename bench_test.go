@@ -2,10 +2,9 @@ package cfb_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"strconv"
 	"testing"
-	"testing/fstest"
 
 	"github.com/abemedia/go-cfb"
 )
@@ -30,144 +29,82 @@ func (d *discardSeeker) Seek(off int64, whence int) (int64, error) {
 	return d.pos, nil
 }
 
-func benchData(size int) []byte {
-	return bytes.Repeat([]byte("0123456789ABCDEF"), size/16+1)[:size]
+type stream struct {
+	name string
+	data []byte
 }
 
-func writeCFB(b *testing.B, size int) []byte {
-	b.Helper()
+func fixture() ([]stream, int64) {
+	buf := bytes.Repeat([]byte("0123456789ABCDEF"), 5*1024*1024/16+1)
+	small, large := buf[:2*1024], buf[:5*1024*1024]
+	out := make([]stream, 0, 53)
+	var total int64
+	for range 50 {
+		out = append(out, stream{fmt.Sprintf("%05d", len(out)), small})
+		total += int64(len(small))
+	}
+	for range 3 {
+		out = append(out, stream{fmt.Sprintf("%05d", len(out)), large})
+		total += int64(len(large))
+	}
+	return out, total
+}
+
+func BenchmarkReader(b *testing.B) {
+	streams, total := fixture()
+	b.SetBytes(total)
 	var buf seekBuffer
 	w := cfb.NewWriterV3(&buf)
-	s, err := w.CreateStream("payload")
-	if err != nil {
-		b.Fatal(err)
-	}
-	if _, err := s.Write(benchData(size)); err != nil {
-		b.Fatal(err)
-	}
-	if err := s.Close(); err != nil {
-		b.Fatal(err)
+	for _, s := range streams {
+		sw, err := w.CreateStream(s.name)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := sw.Write(s.data); err != nil {
+			b.Fatal(err)
+		}
+		if err := sw.Close(); err != nil {
+			b.Fatal(err)
+		}
 	}
 	if err := w.Close(); err != nil {
 		b.Fatal(err)
 	}
-	return buf.buf
-}
-
-func BenchmarkRead(b *testing.B) {
-	for _, tt := range []struct {
-		name string
-		size int
-	}{
-		{"100B", 100}, // mini-stream
-		{"100KB", 100 * 1024},
-		{"10MB", 10 * 1024 * 1024},
-	} {
-		b.Run(tt.name, func(b *testing.B) {
-			src := writeCFB(b, tt.size)
-			b.SetBytes(int64(tt.size))
-			for b.Loop() {
-				r, err := cfb.NewReader(bytes.NewReader(src))
-				if err != nil {
-					b.Fatal(err)
-				}
-				s, err := r.OpenStream("payload")
-				if err != nil {
-					b.Fatal(err)
-				}
-				if _, err := io.Copy(io.Discard, s.Open()); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkWrite(b *testing.B) {
-	for _, tt := range []struct {
-		name string
-		size int
-	}{
-		{"100B", 100}, // mini-stream path with partial trailing sector
-		{"100KB", 100 * 1024},
-		{"10MB", 10 * 1024 * 1024},
-	} {
-		b.Run(tt.name, func(b *testing.B) {
-			data := benchData(tt.size)
-			b.SetBytes(int64(tt.size))
-			for b.Loop() {
-				w := cfb.NewWriterV3(&discardSeeker{})
-				s, err := w.CreateStream("payload")
-				if err != nil {
-					b.Fatal(err)
-				}
-				if _, err := s.Write(data); err != nil {
-					b.Fatal(err)
-				}
-				if err := s.Close(); err != nil {
-					b.Fatal(err)
-				}
-				if err := w.Close(); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkAddStreams(b *testing.B) {
-	// N=100 caps the per-iter checkDuplicate scan at a realistic
-	// per-storage count, so the per-op number stays comparable
-	// across runs instead of drifting with b.N.
-	const n = 100
-	names := make([]string, n)
-	for i := range names {
-		names[i] = strconv.Itoa(i)
-	}
-	for _, tt := range []struct {
-		name string
-		size int
-	}{
-		{"100B", 100},
-		{"100KB", 100 * 1024},
-		{"10MB", 10 * 1024 * 1024},
-	} {
-		b.Run(tt.name, func(b *testing.B) {
-			data := benchData(tt.size)
-			b.SetBytes(int64(tt.size) * n)
-			for b.Loop() {
-				w := cfb.NewWriterV3(&discardSeeker{})
-				for _, name := range names {
-					s, err := w.CreateStream(name)
-					if err != nil {
-						b.Fatal(err)
-					}
-					if _, err := s.Write(data); err != nil {
-						b.Fatal(err)
-					}
-					if err := s.Close(); err != nil {
-						b.Fatal(err)
-					}
-				}
-				if err := w.Close(); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkAddFS(b *testing.B) {
-	src := fstest.MapFS{
-		"top":        &fstest.MapFile{Data: benchData(50 * 1024)},
-		"Sub/inner1": &fstest.MapFile{Data: benchData(20 * 1024)},
-		"Sub/inner2": &fstest.MapFile{Data: benchData(30 * 1024)},
-	}
-	b.SetBytes(int64((50 + 20 + 30) * 1024))
+	rd := bytes.NewReader(buf.buf)
 	for b.Loop() {
-		w := cfb.NewWriterV3(&discardSeeker{})
-		if err := w.AddFS(src); err != nil {
+		r, err := cfb.NewReader(rd)
+		if err != nil {
 			b.Fatal(err)
+		}
+		for _, st := range streams {
+			s, err := r.OpenStream(st.name)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if _, err := io.Copy(io.Discard, s.Open()); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkWriter(b *testing.B) {
+	streams, total := fixture()
+	b.SetBytes(total)
+	var sink discardSeeker
+	for b.Loop() {
+		w := cfb.NewWriterV3(&sink)
+		for _, s := range streams {
+			sw, err := w.CreateStream(s.name)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if _, err := sw.Write(s.data); err != nil {
+				b.Fatal(err)
+			}
+			if err := sw.Close(); err != nil {
+				b.Fatal(err)
+			}
 		}
 		if err := w.Close(); err != nil {
 			b.Fatal(err)
