@@ -1,0 +1,64 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [master]
+    paths: ['**.go']
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  BENCH_COUNT: 10
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run benchmark
+        shell: bash
+        run: |
+          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem . | tee after
+
+      - name: Run benchmark for base code
+        shell: bash
+        run: |
+          git fetch --quiet origin master ${{ github.event.pull_request.base.sha }}
+          git reset --quiet --hard ${{ github.event.pull_request.base.sha }}
+          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem . | tee before
+
+      - name: Compare benchmarks
+        id: bench
+        env:
+          GOTOOLCHAIN: auto
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@latest
+          OUTPUT=$(benchstat before after)
+          echo "${OUTPUT}"
+          echo "diff<<EOF" >> $GITHUB_OUTPUT && echo "$OUTPUT" >> $GITHUB_OUTPUT && echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: steps.bench.outputs.diff != ''
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: benchmark
+          message: |
+            ### Benchmark Results
+
+            ```
+            ${{ steps.bench.outputs.diff }}
+            ```
