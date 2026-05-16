@@ -1,0 +1,2 @@
+ignore:
+  - internal # generator + test helpers, not library code
