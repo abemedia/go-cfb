@@ -115,6 +115,7 @@ func TestNewReader_Error(t *testing.T) {
 		{"inflated DIFAT count", 0x48, uint32(100), "DIFAT sector count"},
 		// DIFAT[0] holds the real FAT sector; patch DIFAT[1].
 		{"inline DIFAT exceeds MAXREGSECT", 0x50, uint32(0xFFFFFFFE), "inline DIFAT entry exceeds MAXREGSECT"},
+		{"FAT count exceeds file size", 0x2C, uint32(0x08000000), "exceeds file size"},
 		{"empty name", entry1 + 64 /* 32 name units * 2 */, uint16(2), "invalid directory entry name length"},
 		{"odd nameLen", entry1 + 64, uint16(15), "invalid directory entry name length"},
 		{"nameLen too large", entry1 + 64, uint16(66), "invalid directory entry name length"},

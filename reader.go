@@ -60,6 +60,9 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 	if err := p.parseHeader(); err != nil {
 		return nil, err
 	}
+	if err := p.checkFileSize(); err != nil {
+		return nil, err
+	}
 	need := max(p.h.NumFATSectors, p.h.NumMiniFATSectors, p.h.NumDirSectors)
 	p.buf = make([]byte, min(int64(need)*p.secSize, 64<<10))
 	if err := p.loadFAT(); err != nil {
@@ -307,6 +310,32 @@ func (p *parser) validateHeader() error {
 		return fmt.Errorf("%w: DIFAT sector count %d exceeds FAT capacity", ErrFormat, p.h.NumDIFATSectors)
 	}
 	return nil
+}
+
+// checkFileSize verifies the input is large enough to hold the sectors the
+// header declares, rejecting a malformed or hostile header before it can
+// drive an oversized allocation.
+func (p *parser) checkFileSize() error {
+	// Below this the header is trusted, avoiding a probe syscall on typical files.
+	const probeThreshold = 4 << 20
+	sectors := 1 +
+		int64(p.h.NumFATSectors) +
+		int64(p.h.NumDIFATSectors) +
+		int64(p.h.NumMiniFATSectors) +
+		int64(p.h.NumDirSectors)
+	size := sectors * p.secSize
+	if size <= probeThreshold {
+		return nil
+	}
+	var b [1]byte
+	switch n, err := p.r.ReadAt(b[:], size-1); {
+	case n >= 1:
+		return nil
+	case err == nil || errors.Is(err, io.EOF):
+		return fmt.Errorf("%w: declared sector count exceeds file size", ErrFormat)
+	default:
+		return err
+	}
 }
 
 // readSectors reads sectors into out, coalescing contiguous sector numbers
