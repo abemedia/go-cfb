@@ -55,4 +55,8 @@ jobs:
           go-version-file: go.mod
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: go test -v -race -coverprofile coverage.out ./...
+
+      - name: Upload coverage reports to Codecov
+        if: matrix.os == 'windows-latest'
+        uses: codecov/codecov-action@v6
