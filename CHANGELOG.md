@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/abemedia/go-cfb/compare/v0.1.0...v0.2.0) (2026-05-25)
+
+
+### Features
+
+* add OLEPS property set reader and writer ([#14](https://github.com/abemedia/go-cfb/issues/14)) ([719e30b](https://github.com/abemedia/go-cfb/commit/719e30bbede3bb63506497868ef1dde64934400f))
+
 ## [0.1.0](https://github.com/abemedia/go-cfb/compare/v0.0.1...v0.1.0) (2026-05-16)
 
 
