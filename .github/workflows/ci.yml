@@ -19,6 +19,25 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      GOOS: windows
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+  generate:
+    name: Generate
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -32,11 +51,6 @@ jobs:
         run: |
           go generate ./...
           git diff --exit-code
-
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
 
   test:
     name: Test
@@ -58,5 +72,6 @@ jobs:
         run: go test -v -race -coverprofile coverage.out ./...
 
       - name: Upload coverage reports to Codecov
-        if: matrix.os == 'windows-latest'
         uses: codecov/codecov-action@v6
+        with:
+          flags: ${{ matrix.os }}

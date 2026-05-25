@@ -1,0 +1,31 @@
+<!-- Source for testdata/example.msi. Regenerate with: `wixl -o testdata/example.msi testdata/sources/wix/build.wxs` -->
+
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="75BD6365-D81A-4C23-8B39-38B6AF8A7490" 
+           UpgradeCode="E3A79694-DB40-410E-921A-1D7644265E9F" 
+           Name="Hello World" 
+           Manufacturer="Example Inc" 
+           Language="1033" 
+           Codepage="1252" 
+           Version="1.0.0">
+    
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"/>
+
+    <Media Id="1" Cabinet="hello.cab" EmbedCab="yes"/>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLDIR" Name="HelloWorld">
+          <Component Id="MainComponent" Guid="A9C3F020-002D-4E10-85A2-B58DFD4D8456">
+            <File Id="HelloTxt" Source="hello.txt" Name="hello.txt" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="MainFeature" Title="Hello World" Level="1">
+      <ComponentRef Id="MainComponent"/>
+    </Feature>
+  </Product>
+</Wix>

@@ -50,7 +50,23 @@ s, err := r.OpenStream("\x05SummaryInformation")
 if err != nil {
   return err
 }
-data, err := io.ReadAll(s.Open())
+data, err := io.ReadAll(s.Open()) // `Stream` also implements `io.ReaderAt` for random access
+```
+
+Streams that contain OLE property sets (well-known streams like `\x05SummaryInformation`) can be decoded into typed values via the [oleps](./oleps) sub-package.
+
+```go
+pss, err := oleps.Decode(s.Open())
+if err != nil {
+  return err
+}
+
+for _, ps := range pss.PropertySets {
+  fmt.Printf("FMTID=%x\n", ps.FMTID)
+  for _, p := range ps.Properties {
+    fmt.Printf("  PID=%d Value=%v\n", p.ID, p.Value)
+  }
+}
 ```
 
 The `Reader` also implements `fs.FS`, so it works with `fs.WalkDir`, `fs.ReadFile`, and other standard library functions:
@@ -61,8 +77,6 @@ fs.WalkDir(r, ".", func(path string, d fs.DirEntry, err error) error {
   return err
 })
 ```
-
-`Stream` additionally implements `io.ReaderAt`, which is stateless and safe for concurrent use.
 
 ### Writing a Compound File
 

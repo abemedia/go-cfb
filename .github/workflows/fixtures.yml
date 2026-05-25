@@ -6,7 +6,8 @@ on:
       - master
     paths:
       - testdata/**
-      - internal/istorage/**
+      - oleps/testdata/**
+      - internal/structuredstorage/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -21,6 +22,7 @@ jobs:
         with:
           client-id: ${{ secrets.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -33,14 +35,17 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Generate fixtures
+      - name: Generate CFB fixtures
         run: go run ./testdata/generate.go
+
+      - name: Generate OLEPS fixtures
+        run: go run ./oleps/testdata/generate.go
 
       - name: Commit if changed
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add testdata/
+          git add testdata/ oleps/testdata/
           git diff --staged --quiet || git commit -m "chore: update fixtures"
           git push

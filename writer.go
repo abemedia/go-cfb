@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+
+	"github.com/abemedia/go-cfb/internal/filetime"
 )
 
 var rootName = utf16.Encode([]rune("Root Entry"))
@@ -144,9 +146,11 @@ type StorageWriter struct {
 	StateBits uint32
 
 	// Created is the time the entry was created.
+	// A zero value or any time outside years 1601-60056 is recorded as unset.
 	Created time.Time
 
 	// Modified is the time the entry was last modified.
+	// A zero value or any time outside years 1601-60056 is recorded as unset.
 	Modified time.Time
 
 	w        *Writer
@@ -499,12 +503,14 @@ func (s *serializer) emitDirectory() error {
 	emit = func(sw *StorageWriter, isRoot bool) error {
 		id := counter
 		counter++
+		created, _ := filetime.Encode(sw.Created)
+		modified, _ := filetime.Encode(sw.Modified)
 		de := direntry{
 			name:       sw.name,
 			clsid:      sw.CLSID,
 			stateBits:  sw.StateBits,
-			created:    timeToFiletime(sw.Created),
-			modified:   timeToFiletime(sw.Modified),
+			created:    created,
+			modified:   modified,
 			objectType: objectStorage,
 			leftSib:    s.layout[id].leftSib,
 			rightSib:   s.layout[id].rightSib,

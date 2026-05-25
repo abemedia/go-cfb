@@ -32,14 +32,14 @@ jobs:
       - name: Run benchmark
         shell: bash
         run: |
-          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem . | tee after
+          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem ./... | tee after
 
       - name: Run benchmark for base code
         shell: bash
         run: |
           git fetch --quiet origin master ${{ github.event.pull_request.base.sha }}
           git reset --quiet --hard ${{ github.event.pull_request.base.sha }}
-          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem . | tee before
+          go test -run ^$ -bench=. -count=${{ env.BENCH_COUNT }} -benchmem ./... | tee before
 
       - name: Compare benchmarks
         id: bench

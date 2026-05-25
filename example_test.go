@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/abemedia/go-cfb"
+	"github.com/abemedia/go-cfb/oleps"
 )
 
 func ExampleWriter() {
@@ -75,4 +76,38 @@ func ExampleReader() {
 	// Output:
 	// Contents of README.md:
 	// This is an example CFB file.
+}
+
+func ExampleReader_summaryInformation() {
+	// Open an MSI compound file.
+	r, err := cfb.OpenReader("testdata/example.msi")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer r.Close()
+
+	// Open the well-known summary-information stream.
+	s, err := r.OpenStream("\x05SummaryInformation")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Decode it as an OLE property set.
+	pss, err := oleps.Decode(s.Open())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Pick out a couple of well-known properties.
+	for _, p := range pss.PropertySets[0].Properties {
+		switch p.ID {
+		case 3: // Subject (product name)
+			fmt.Println("Subject:", p.Value)
+		case 4: // Author (manufacturer)
+			fmt.Println("Author:", p.Value)
+		}
+	}
+	// Output:
+	// Subject: Hello World
+	// Author: Example Inc
 }

@@ -1,8 +1,12 @@
-// Package istorage wraps Windows' IStorage / IStream COM API from ole32.dll.
-package istorage
+//go:build windows && (amd64 || arm64)
+
+// Package structuredstorage wraps Windows' IStorage / IStream / IPropertySetStorage
+// COM API from ole32.dll.
+package structuredstorage
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 	"time"
 	"unsafe"
@@ -11,6 +15,7 @@ import (
 // Version selects v3 (512-byte) or v4 (4096-byte) sectors when creating.
 type Version int
 
+// Compound-file format versions.
 const (
 	V3 Version = iota
 	V4
@@ -19,6 +24,7 @@ const (
 // Type identifies an entry as a storage or stream.
 type Type uint32
 
+// STGTY_* values for [EntryInfo.Type].
 const (
 	TypeStorage Type = 1 // STGTY_STORAGE
 	TypeStream  Type = 2 // STGTY_STREAM
@@ -45,6 +51,20 @@ const (
 
 	stgfmtStorage = 0
 	stgfmtDocfile = 5
+
+	propsetflagAnsi = 0x2
+
+	prspecPropID    = 1 // PROPSPEC.ulKind
+	propidNameFirst = 2 // WriteMultiple's first usable PROPID
+)
+
+// Supported PROPVARIANT type tags.
+const (
+	vtI2       = 0x02
+	vtI4       = 0x03
+	vtUI4      = 0x13
+	vtLPSTR    = 0x1E
+	vtFiletime = 0x40
 )
 
 var (
@@ -56,6 +76,10 @@ var (
 
 	iidIStorage = syscall.GUID{
 		Data1: 0x0000000B,
+		Data4: [8]byte{0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46},
+	}
+	iidIPropertySetStorage = syscall.GUID{
+		Data1: 0x0000013A,
 		Data4: [8]byte{0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46},
 	}
 )
@@ -73,7 +97,7 @@ type stgOptions struct {
 	pwcsTemplateFile *uint16
 }
 
-// statstg mirrors the STATSTG struct from objidl.h. Layout matters.
+// statstg mirrors the STATSTG struct from objidl.h.
 type statstg struct {
 	pwcsName          *uint16
 	stgType           uint32
@@ -88,21 +112,36 @@ type statstg struct {
 	reserved          uint32
 }
 
+// propspec mirrors the PROPSPEC struct from propidl.h.
+type propspec struct {
+	ulKind uint32
+	_      uint32 // pad: union is 8-byte aligned on 64-bit Windows
+	propid uint32 // union arm (PRSPEC_PROPID); lpwstr arm unused
+	_      uint32 // upper half of the 8-byte union
+}
+
+// propvariant mirrors the PROPVARIANT struct from propidl.h.
+type propvariant struct {
+	vt  uint16
+	_   [3]uint16 // wReserved1..3
+	val [2]uint64 // union (only scalar arms used)
+}
+
 type iStorageVtbl struct {
 	queryInterface  uintptr
-	addRef          uintptr
+	_               uintptr // addRef
 	release         uintptr
 	createStream    uintptr
 	openStream      uintptr
 	createStorage   uintptr
 	openStorage     uintptr
-	copyTo          uintptr
-	moveElementTo   uintptr
+	_               uintptr // copyTo
+	_               uintptr // moveElementTo
 	commit          uintptr
-	revert          uintptr
+	_               uintptr // revert
 	enumElements    uintptr
-	destroyElement  uintptr
-	renameElement   uintptr
+	_               uintptr // destroyElement
+	_               uintptr // renameElement
 	setElementTimes uintptr
 	setClass        uintptr
 	setStateBits    uintptr
@@ -115,17 +154,76 @@ type Storage struct {
 }
 
 type iEnumSTATSTGVtbl struct {
-	queryInterface uintptr
-	addRef         uintptr
-	release        uintptr
-	next           uintptr
-	skip           uintptr
-	reset          uintptr
-	clone          uintptr
+	_       uintptr // queryInterface
+	_       uintptr // addRef
+	release uintptr
+	next    uintptr
+	_       uintptr // skip
+	_       uintptr // reset
+	_       uintptr // clone
 }
 
 type iEnumSTATSTG struct {
 	vtbl *iEnumSTATSTGVtbl
+}
+
+type iStreamVtbl struct {
+	_       uintptr // queryInterface
+	_       uintptr // addRef
+	release uintptr
+	read    uintptr
+	write   uintptr
+	seek    uintptr
+	_       uintptr // setSize
+	_       uintptr // copyTo
+	_       uintptr // commit
+	_       uintptr // revert
+	_       uintptr // lockRegion
+	_       uintptr // unlockRegion
+	stat    uintptr
+	_       uintptr // clone
+}
+
+// Stream wraps an IStream* COM pointer.
+type Stream struct {
+	vtbl *iStreamVtbl
+}
+
+type iPropertySetStorageVtbl struct {
+	_       uintptr // queryInterface
+	_       uintptr // addRef
+	release uintptr
+	create  uintptr
+}
+
+// PropertySetStorage wraps an IPropertySetStorage* COM pointer.
+type PropertySetStorage struct {
+	vtbl *iPropertySetStorageVtbl
+}
+
+type iPropertyStorageVtbl struct {
+	_             uintptr // queryInterface
+	_             uintptr // addRef
+	release       uintptr
+	_             uintptr // readMultiple
+	writeMultiple uintptr
+	_             uintptr // deleteMultiple
+	_             uintptr // readPropertyNames
+	_             uintptr // writePropertyNames
+	_             uintptr // deletePropNames
+	commit        uintptr
+}
+
+// PropertyStorage wraps an IPropertyStorage* COM pointer.
+type PropertyStorage struct {
+	vtbl *iPropertyStorageVtbl
+}
+
+// Prop is one (PROPID, value) pair for WriteMultiple.
+type Prop struct {
+	id  uint32
+	pv  propvariant
+	pin any // keeps an LPSTR buffer alive across the call
 }
 
 // Create creates a new compound file at path with the given version.
@@ -399,59 +497,18 @@ func (s *Storage) Entries() ([]EntryInfo, error) {
 	return out, nil
 }
 
-func entryFromStat(st *statstg) EntryInfo {
-	info := EntryInfo{
-		Name:      utf16PtrToString(st.pwcsName),
-		Type:      Type(st.stgType),
-		Size:      int64(st.cbSize),
-		CLSID:     *(*[16]byte)(unsafe.Pointer(&st.clsid)),
-		StateBits: st.grfStateBits,
-		Created:   filetimeToTime(st.ctime),
-		Modified:  filetimeToTime(st.mtime),
+// PropertySetStorage queries the root storage for its IPropertySetStorage.
+func (s *Storage) PropertySetStorage() (*PropertySetStorage, error) {
+	var pss *PropertySetStorage
+	r, _, _ := syscall.SyscallN(s.vtbl.queryInterface,
+		uintptr(unsafe.Pointer(s)),
+		uintptr(unsafe.Pointer(&iidIPropertySetStorage)),
+		uintptr(unsafe.Pointer(&pss)),
+	)
+	if r != 0 {
+		return nil, syscall.Errno(r)
 	}
-	procCoTaskMemFree.Call(uintptr(unsafe.Pointer(st.pwcsName)))
-	return info
-}
-
-func filetimeToTime(ft syscall.Filetime) time.Time {
-	if ft.LowDateTime == 0 && ft.HighDateTime == 0 {
-		return time.Time{}
-	}
-	return time.Unix(0, ft.Nanoseconds()).UTC()
-}
-
-func utf16PtrToString(p *uint16) string {
-	if p == nil || *p == 0 {
-		return ""
-	}
-	// Find NUL terminator.
-	n := 0
-	for ptr := unsafe.Pointer(p); *(*uint16)(ptr) != 0; n++ {
-		ptr = unsafe.Add(ptr, unsafe.Sizeof(*p))
-	}
-	return syscall.UTF16ToString(unsafe.Slice(p, n))
-}
-
-type iStreamVtbl struct {
-	queryInterface uintptr
-	addRef         uintptr
-	release        uintptr
-	read           uintptr
-	write          uintptr
-	seek           uintptr
-	setSize        uintptr
-	copyTo         uintptr
-	commit         uintptr
-	revert         uintptr
-	lockRegion     uintptr
-	unlockRegion   uintptr
-	stat           uintptr
-	clone          uintptr
-}
-
-// Stream wraps an IStream* COM pointer.
-type Stream struct {
-	vtbl *iStreamVtbl
+	return pss, nil
 }
 
 // Close releases the stream.
@@ -518,27 +575,155 @@ func (s *Stream) Write(p []byte) (int, error) {
 // Seek implements [io.Seeker].
 func (s *Stream) Seek(offset int64, whence int) (int64, error) {
 	var newPos uint64
-	var r uintptr
-	if unsafe.Sizeof(uintptr(0)) == 8 {
-		r, _, _ = syscall.SyscallN(
-			s.vtbl.seek,
-			uintptr(unsafe.Pointer(s)),
-			uintptr(offset),
-			uintptr(whence),
-			uintptr(unsafe.Pointer(&newPos)),
-		)
-	} else {
-		// offset is a LARGE_INTEGER split into low/high DWORDs on 32-bit.
-		r, _, _ = syscall.SyscallN(s.vtbl.seek,
-			uintptr(unsafe.Pointer(s)),
-			uintptr(offset),
-			uintptr(offset>>32),
-			uintptr(whence),
-			uintptr(unsafe.Pointer(&newPos)),
-		)
-	}
+	r, _, _ := syscall.SyscallN(s.vtbl.seek,
+		uintptr(unsafe.Pointer(s)),
+		uintptr(offset),
+		uintptr(whence),
+		uintptr(unsafe.Pointer(&newPos)),
+	)
 	if r != 0 {
 		return 0, syscall.Errno(r)
 	}
 	return int64(newPos), nil
+}
+
+// Close releases the property set storage.
+func (p *PropertySetStorage) Close() {
+	syscall.SyscallN(p.vtbl.release, uintptr(unsafe.Pointer(p)))
+}
+
+// Create creates a property set with fmtid and clsid.
+func (p *PropertySetStorage) Create(fmtid, clsid [16]byte) (*PropertyStorage, error) {
+	var ps *PropertyStorage
+	r, _, _ := syscall.SyscallN(p.vtbl.create,
+		uintptr(unsafe.Pointer(p)),
+		uintptr(unsafe.Pointer(&fmtid)),
+		uintptr(unsafe.Pointer(&clsid)),
+		uintptr(propsetflagAnsi),
+		uintptr(stgmCreate|stgmReadWrite|stgmShareExcl),
+		uintptr(unsafe.Pointer(&ps)),
+	)
+	if r != 0 {
+		return nil, syscall.Errno(r)
+	}
+	return ps, nil
+}
+
+// Close releases the property storage.
+func (p *PropertyStorage) Close() {
+	syscall.SyscallN(p.vtbl.release, uintptr(unsafe.Pointer(p)))
+}
+
+// Commit flushes the property storage.
+func (p *PropertyStorage) Commit() error {
+	r, _, _ := syscall.SyscallN(p.vtbl.commit,
+		uintptr(unsafe.Pointer(p)),
+		0, // STGC_DEFAULT
+	)
+	if r != 0 {
+		return syscall.Errno(r)
+	}
+	return nil
+}
+
+// WriteMultiple writes props.
+func (p *PropertyStorage) WriteMultiple(props []Prop) error {
+	if len(props) == 0 {
+		return nil
+	}
+	specs := make([]propspec, len(props))
+	vars := make([]propvariant, len(props))
+	for i, pr := range props {
+		specs[i] = propspec{ulKind: prspecPropID, propid: pr.id}
+		vars[i] = pr.pv
+	}
+	r, _, _ := syscall.SyscallN(p.vtbl.writeMultiple,
+		uintptr(unsafe.Pointer(p)),
+		uintptr(len(props)),
+		uintptr(unsafe.Pointer(&specs[0])),
+		uintptr(unsafe.Pointer(&vars[0])),
+		uintptr(propidNameFirst),
+	)
+	runtime.KeepAlive(props)
+	if r != 0 {
+		return syscall.Errno(r)
+	}
+	return nil
+}
+
+// PropI2 builds a VT_I2 property.
+func PropI2(id uint32, v int16) Prop {
+	p := Prop{id: id, pv: propvariant{vt: vtI2}}
+	*(*int16)(unsafe.Pointer(&p.pv.val[0])) = v
+	return p
+}
+
+// PropI4 builds a VT_I4 property.
+func PropI4(id uint32, v int32) Prop {
+	p := Prop{id: id, pv: propvariant{vt: vtI4}}
+	*(*int32)(unsafe.Pointer(&p.pv.val[0])) = v
+	return p
+}
+
+// PropUI4 builds a VT_UI4 property.
+func PropUI4(id, v uint32) Prop {
+	p := Prop{id: id, pv: propvariant{vt: vtUI4}}
+	*(*uint32)(unsafe.Pointer(&p.pv.val[0])) = v
+	return p
+}
+
+// PropFiletime builds a VT_FILETIME property from t. A zero t produces
+// FILETIME{0,0}.
+func PropFiletime(id uint32, t time.Time) Prop {
+	p := Prop{id: id, pv: propvariant{vt: vtFiletime}}
+	if !t.IsZero() {
+		ft := syscall.NsecToFiletime(t.UnixNano())
+		p.pv.val[0] = uint64(ft.HighDateTime)<<32 | uint64(ft.LowDateTime)
+	}
+	return p
+}
+
+// PropLPSTR builds a VT_LPSTR property. s must already be code-page bytes,
+// not UTF-8.
+func PropLPSTR(id uint32, s string) Prop {
+	cstr := append([]byte(s), 0)
+	p := Prop{id: id, pin: cstr, pv: propvariant{vt: vtLPSTR}}
+	p.pv.val[0] = uint64(uintptr(unsafe.Pointer(&cstr[0])))
+	return p
+}
+
+// entryFromStat copies a STATSTG into an [EntryInfo] and frees pwcsName.
+func entryFromStat(st *statstg) EntryInfo {
+	info := EntryInfo{
+		Name:      utf16PtrToString(st.pwcsName),
+		Type:      Type(st.stgType),
+		Size:      int64(st.cbSize),
+		CLSID:     *(*[16]byte)(unsafe.Pointer(&st.clsid)),
+		StateBits: st.grfStateBits,
+		Created:   filetimeToTime(st.ctime),
+		Modified:  filetimeToTime(st.mtime),
+	}
+	procCoTaskMemFree.Call(uintptr(unsafe.Pointer(st.pwcsName)))
+	return info
+}
+
+// filetimeToTime converts a FILETIME to a UTC [time.Time]. A zero FILETIME
+// returns the zero time.
+func filetimeToTime(ft syscall.Filetime) time.Time {
+	if ft.LowDateTime == 0 && ft.HighDateTime == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, ft.Nanoseconds()).UTC()
+}
+
+// utf16PtrToString reads a NUL-terminated UTF-16 string from p.
+func utf16PtrToString(p *uint16) string {
+	if p == nil || *p == 0 {
+		return ""
+	}
+	n := 0
+	for ptr := unsafe.Pointer(p); *(*uint16)(ptr) != 0; n++ {
+		ptr = unsafe.Add(ptr, unsafe.Sizeof(*p))
+	}
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
