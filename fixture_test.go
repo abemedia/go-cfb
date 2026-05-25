@@ -10,7 +10,7 @@ import (
 
 	"github.com/abemedia/go-cfb"
 	"github.com/abemedia/go-cfb/internal/cfbtest"
-	"github.com/abemedia/go-cfb/internal/istorage"
+	"github.com/abemedia/go-cfb/internal/structuredstorage"
 )
 
 func loadFixtureNames(t *testing.T) []string {
@@ -19,7 +19,9 @@ func loadFixtureNames(t *testing.T) []string {
 	if err != nil {
 		t.Fatalf("read fixtures.json: %v", err)
 	}
-	var out []struct{ Name string }
+	var out []struct {
+		Name string `json:"name"`
+	}
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatalf("parse fixtures.json: %v", err)
 	}
@@ -35,9 +37,9 @@ func TestReader(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfbPath := filepath.Join("testdata", name)
 
-			want, err := istorage.Open(cfbPath)
+			want, err := structuredstorage.Open(cfbPath)
 			if err != nil {
-				t.Fatalf("istorage.Open: %v", err)
+				t.Fatalf("structuredstorage.Open: %v", err)
 			}
 			defer want.Close()
 
@@ -88,15 +90,15 @@ func TestWriter(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			want, err := istorage.Open(cfbPath)
+			want, err := structuredstorage.Open(cfbPath)
 			if err != nil {
-				t.Fatalf("istorage.Open(%q): %v", cfbPath, err)
+				t.Fatalf("structuredstorage.Open(%q): %v", cfbPath, err)
 			}
 			defer want.Close()
 
-			got, err := istorage.Open(tmp.Name())
+			got, err := structuredstorage.Open(tmp.Name())
 			if err != nil {
-				t.Fatalf("istorage.Open(%q): %v", tmp.Name(), err)
+				t.Fatalf("structuredstorage.Open(%q): %v", tmp.Name(), err)
 			}
 			defer got.Close()
 

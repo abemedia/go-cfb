@@ -1,3 +1,5 @@
+//go:build windows
+
 // generate.go materialises testdata fixtures via Windows' IStorage API.
 // Run on Windows:
 //
@@ -7,7 +9,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,11 +17,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/abemedia/go-cfb/internal/istorage"
+	"github.com/abemedia/go-cfb/internal/guid"
+	"github.com/abemedia/go-cfb/internal/structuredstorage"
 )
 
 type EntrySpec struct {
@@ -50,10 +51,6 @@ func main() {
 }
 
 func run() error {
-	if runtime.GOOS != "windows" {
-		return errors.New("this generator must be run on Windows (uses ole32.dll)")
-	}
-
 	dir, err := sourceDir()
 	if err != nil {
 		return err
@@ -104,16 +101,16 @@ func sourceDir() (string, error) {
 }
 
 func buildCFB(cfbPath, version, fixtureName string, root EntrySpec) error {
-	var v istorage.Version
+	var v structuredstorage.Version
 	switch {
 	case strings.EqualFold(version, "v3"):
-		v = istorage.V3
+		v = structuredstorage.V3
 	case strings.EqualFold(version, "v4"):
-		v = istorage.V4
+		v = structuredstorage.V4
 	default:
 		return fmt.Errorf("unknown version %q", version)
 	}
-	stg, err := istorage.Create(cfbPath, v)
+	stg, err := structuredstorage.Create(cfbPath, v)
 	if err != nil {
 		return err
 	}
@@ -130,7 +127,7 @@ func buildCFB(cfbPath, version, fixtureName string, root EntrySpec) error {
 	return stg.SetElementTimes("", root.Created, root.Modified, root.Modified)
 }
 
-func writeTree(parent *istorage.Storage, fixtureName, prefix string, entries []EntrySpec) error {
+func writeTree(parent *structuredstorage.Storage, fixtureName, prefix string, entries []EntrySpec) error {
 	for _, e := range entries {
 		rel := e.Name
 		if prefix != "" {
@@ -175,9 +172,9 @@ func writeTree(parent *istorage.Storage, fixtureName, prefix string, entries []E
 }
 
 // applyMetadata writes CLSID and StateBits onto an open storage handle.
-func applyMetadata(s *istorage.Storage, e EntrySpec) error {
+func applyMetadata(s *structuredstorage.Storage, e EntrySpec) error {
 	if e.CLSID != "" {
-		clsid, err := parseCLSID(e.CLSID)
+		clsid, err := guid.Parse(e.CLSID)
 		if err != nil {
 			return err
 		}
@@ -189,21 +186,6 @@ func applyMetadata(s *istorage.Storage, e EntrySpec) error {
 		return err
 	}
 	return nil
-}
-
-// parseCLSID parses a GUID string into its COM in-memory layout.
-func parseCLSID(in string) ([16]byte, error) {
-	s := strings.ReplaceAll(strings.Trim(in, "{}"), "-", "")
-	b, err := hex.DecodeString(s)
-	if err != nil || len(b) != 16 {
-		return [16]byte{}, fmt.Errorf("CLSID %q: invalid", in)
-	}
-	var clsid [16]byte
-	copy(clsid[:], b)
-	slices.Reverse(clsid[0:4])
-	slices.Reverse(clsid[4:6])
-	slices.Reverse(clsid[6:8])
-	return clsid, nil
 }
 
 // generateContent returns deterministic pseudo-random content for a stream.

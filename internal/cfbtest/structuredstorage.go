@@ -5,10 +5,10 @@ package cfbtest
 import (
 	"testing"
 
-	"github.com/abemedia/go-cfb/internal/istorage"
+	"github.com/abemedia/go-cfb/internal/structuredstorage"
 )
 
-func fromIStorage(t *testing.T, s *istorage.Storage) entry {
+func fromStructuredStorage(t *testing.T, s *structuredstorage.Storage) entry {
 	t.Helper()
 	info, err := s.Stat()
 	if err != nil {
@@ -28,14 +28,14 @@ func fromIStorage(t *testing.T, s *istorage.Storage) entry {
 	}
 	for _, e := range live {
 		switch e.Type {
-		case istorage.TypeStorage:
+		case structuredstorage.TypeStorage:
 			sub, err := s.OpenStorage(e.Name)
 			if err != nil {
 				t.Fatal(err)
 			}
-			out.Children = append(out.Children, fromIStorage(t, sub))
+			out.Children = append(out.Children, fromStructuredStorage(t, sub))
 			sub.Close()
-		case istorage.TypeStream:
+		case structuredstorage.TypeStream:
 			stm, err := s.OpenStream(e.Name)
 			if err != nil {
 				t.Fatal(err)

@@ -9,14 +9,14 @@ import (
 	"testing"
 
 	cfb "github.com/abemedia/go-cfb"
-	"github.com/abemedia/go-cfb/internal/istorage"
+	"github.com/abemedia/go-cfb/internal/structuredstorage"
 )
 
 // TestNameRules verifies our BMP-wide name rules agree with ole32 on
 // validity, equivalence, canonical, and sort order.
 func TestNameRules(t *testing.T) {
 	cfbPath := filepath.Join(t.TempDir(), "bmp.cfb")
-	stg, err := istorage.Create(cfbPath, istorage.V3)
+	stg, err := structuredstorage.Create(cfbPath, structuredstorage.V3)
 	if err != nil {
 		t.Fatalf("create CFB: %v", err)
 	}

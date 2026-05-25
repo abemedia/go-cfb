@@ -14,8 +14,9 @@ linters:
     - gochecknoglobals
     - gochecknoinits
     - gocyclo
-    - gosec
     - godox
+    - gosec
+    - gosmopolitan
     - ireturn
     - mnd
     - nlreturn
@@ -44,11 +45,14 @@ linters:
           - gocognit
           - goconst
           - gocritic
+          - lll
         path: (.+)_test.go
       - linters: [govet]
         text: 'shadow: declaration of "err" shadows declaration'
       - linters: [goconst]
         source: 'fs\.PathError'
+      - linters: [errcheck] # COM bindings check HRESULTs via the first return
+        path: internal/structuredstorage/
     paths:
       - testdata
 
@@ -57,7 +61,6 @@ formatters:
     - gofmt
     - gofumpt
     - goimports
-    - golines
   settings:
     gofmt:
       rewrite-rules:
@@ -65,6 +68,3 @@ formatters:
           replacement: any
     gofumpt:
       extra-rules: true
-    golines:
-      max-len: 120
-      tab-len: 1

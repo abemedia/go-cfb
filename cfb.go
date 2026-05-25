@@ -9,8 +9,6 @@
 // [MS-CFB]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/
 package cfb
 
-import "time"
-
 // Sizes and limits.
 const (
 	headerSize       = 512
@@ -54,27 +52,3 @@ const (
 	endOfChain uint32 = 0xFFFFFFFE
 	freeSect   uint32 = 0xFFFFFFFF
 )
-
-const (
-	filetimeEpoch = 116444736000000000 // FILETIME of the Unix epoch
-	filetimeTicks = 10_000_000         // FILETIME ticks per second
-)
-
-func filetimeToTime(ft uint64) time.Time {
-	if ft == 0 {
-		return time.Time{}
-	}
-	sec, rem := ft/filetimeTicks, ft%filetimeTicks
-	return time.Unix(int64(sec)-filetimeEpoch/filetimeTicks, int64(rem)*100).UTC()
-}
-
-func timeToFiletime(t time.Time) uint64 {
-	if t.IsZero() {
-		return 0
-	}
-	sec, nsec := t.Unix(), int64(t.Nanosecond())
-	if sec >= 0 {
-		return filetimeEpoch + uint64(sec)*filetimeTicks + uint64(nsec/100)
-	}
-	return filetimeEpoch - uint64(-sec)*filetimeTicks + uint64(nsec/100)
-}

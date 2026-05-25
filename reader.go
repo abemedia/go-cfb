@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/abemedia/go-cfb/internal/filetime"
 )
 
 // ErrFormat is returned when a CFB file's structure is invalid.
@@ -106,8 +108,7 @@ type Storage struct {
 	// Modified is the time the entry was last modified.
 	Modified time.Time
 
-	// Entries are sorted by length, then by case-insensitive UTF-16
-	// code-unit comparison.
+	// Entries lists the child entries in the order they appear in the directory BST.
 	Entries []Entry
 }
 
@@ -132,6 +133,8 @@ func (s *Storage) OpenStorage(name string) (*Storage, error) {
 }
 
 func findEntry[T Entry](s *Storage, name string) (T, bool) {
+	// Linear, not binary search: some writers (e.g. POI) don't order entries
+	// by MS-CFB collation, so a binary search would miss present entries.
 	for _, e := range s.Entries {
 		if v, ok := e.(T); ok && compareNamesStr(name, e.entryName()) == 0 {
 			return v, true
@@ -593,8 +596,8 @@ func parseEntry(buf []byte, majorVersion uint16) (rawEntry, error) {
 			Name:      name,
 			CLSID:     clsid,
 			StateBits: stateBits,
-			Created:   filetimeToTime(created),
-			Modified:  filetimeToTime(modified),
+			Created:   filetime.Decode(created),
+			Modified:  filetime.Decode(modified),
 		}
 	case objectStream:
 		re.stream = &Stream{

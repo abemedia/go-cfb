@@ -1,2 +1,6 @@
+codecov:
+  notify:
+    after_n_builds: 3 # one per matrix OS
 ignore:
-  - internal # generator + test helpers, not library code
+  # generator + test helpers, not library code
+  - '(^|.*/)internal/(?!filetime/).*'
