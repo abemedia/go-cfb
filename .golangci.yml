@@ -9,6 +9,7 @@ linters:
     - errorlint
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
     - forcetypeassert
     - funcorder
     - gochecknoglobals
@@ -67,4 +68,7 @@ formatters:
         - pattern: interface{}
           replacement: any
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
