@@ -1,7 +1,6 @@
 # go-cfb: Pure Go Microsoft Compound File Binary Reader & Writer
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/abemedia/go-cfb.svg)](https://pkg.go.dev/github.com/abemedia/go-cfb)
-[![Go Report Card](https://goreportcard.com/badge/github.com/abemedia/go-cfb)](https://goreportcard.com/report/github.com/abemedia/go-cfb)
 [![Codecov](https://codecov.io/gh/abemedia/go-cfb/branch/master/graph/badge.svg)](https://codecov.io/gh/abemedia/go-cfb)
 
 A pure Go library for reading and writing Microsoft Compound File Binary (CFB) files - the COM Structured Storage (OLE2) container format used by `.msg`, `.doc`, `.xls`, `.msi`, and similar files.
